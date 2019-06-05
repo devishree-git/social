@@ -1,4 +1,5 @@
 from lxml import etree
+import lxml.html
 import re
 from odoo import _, api, models
 
@@ -8,30 +9,15 @@ class MailTemplate(models.Model):
 
     @api.model
     def _debrand_body(self, html):
-        using_word = _('using')
-        odoo_word = _('Odoo')
-        html = re.sub(
-            using_word + "(.*)[\r\n]*(.*)>" + odoo_word + r"</a>", "", html,
-        )
-        powered_by = _("Powered by")
-        if powered_by not in html:
-            return html
-        root = etree.fromstring(html)
-        powered_by_elements = root.xpath(
-            "//*[text()[contains(.,'%s')]]" % powered_by
-        )
-        for elem in powered_by_elements:
-            # make sure it isn't a spurious powered by
-            if any(
-                [
-                    "www.odoo.com" in child.get("href", "")
-                    for child in elem.getchildren()
-                ]
-            ):
-                for child in elem.getchildren():
-                    elem.remove(child)
-                elem.text = None
-        return str(etree.tostring(root))
+        root = lxml.html.fromstring(html)
+        for i in root.xpath("//td"):
+            try:
+                if i.getchildren()[0].text == str('Odoo'):
+                    i.clear()
+            except:
+                pass
+            html = etree.tostring(root)
+        return html
 
     @api.model
     def render_post_process(self, html):
